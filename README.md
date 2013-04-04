@@ -6,9 +6,9 @@ of this fork is to provide a non-trivial pusher integration. This integration
 was demoed April 4th, 2013 at [Ember Toronto Meetup](http://torontoemberjs.com/).
 
 ## Running it
-Your pusher settings are needed, after all, so go ahead and create a
-`config.yml` in the form of `config.yml.tmpl`. Finish up with a `bundle`
-and and a:
+Your pusher settings are needed, after all, so go ahead and create an app on
+[pusher.com](http://pusher.com). Create a `config.yml` in the form 
+of `config.yml.tmpl`, then `bundle` and finish up with:
 
 `bundle exec rackup -s thin`  
   
