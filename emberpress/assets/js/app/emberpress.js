@@ -421,7 +421,10 @@
   // **ApplicationController**: Handles controls at the application level.
   EmberPress.ApplicationController = Ember.Controller.extend(
     EmberPress.PusherListener, {
+
     isLoading: true,
+
+    gameStarted: false,
 
     needs: 'users',
 
@@ -449,10 +452,10 @@
     needs: 'users',
 
     isWaiting: function() {
-      console.log("isWaiting: ", this.get('controllers.users.player1s.length'));
-      console.log("isWaiting: ", this.get('controllers.users.player2s.length'));
+      if(this.get('gameStarted')) return false;
       if(!this.get('controllers.users.player1s.length')) return true;
       if(!this.get('controllers.users.player2s.length')) return true;
+      this.set('gameStarted', true);
       return false;
     }.property(
       'controllers.users.player1s.length',
@@ -466,40 +469,43 @@
   EmberPress.UsersController = Ember.Controller.extend(
     EmberPress.PusherListener, {
 
+    needs: 'pusher',
+
     player1s: [],
     player2s: [],
 
+    refreshPlayers: function(memberMap) {
+      var memberMap = this.get('controllers.pusher')
+        .channelFor('game').members._members_map;
+      this.set('player1s', []);
+      this.set('player2s', []);
+      var _this = this;
+
+      $.get('/games/' + PRELOAD.game.id + '/players', function(players) {
+        for(var user_id in memberMap) {
+          var user = Em.Object.create({
+            id: user_id,
+            name: memberMap[user_id].name
+          });
+          if(players.player1s.indexOf(user_id) >= 0)
+            _this.get('player1s').pushObject(user);
+          else
+            _this.get('player2s').pushObject(user);
+        }
+      });
+    },
+
     // Setup the player as either a player1 or player2
     'pusher:subscriptionSucceeded': function(data) {
-      for(var user_id in data._members_map) {
-        var user = Em.Object.create({
-          id: user_id,
-          name: data._members_map[user_id].name
-        });
-        if(PRELOAD.game.players.player1s.indexOf(user_id) >= 0)
-          this.get('player1s').pushObject(user);
-        else if(PRELOAD.game.players.player2s.indexOf(user_id) >= 0)
-          this.get('player2s').pushObject(user);
-      }
+      this.refreshPlayers()
     },
 
     'pusher:memberAdded': function(data) {
-      console.log("member added: ", data);
-      var user = Em.Object.create({ id: data.id, name: data.info.name });
-
-      // We don't want to do anything if this user is already a player
-      if(this.get('player1s').findProperty('id', data.id)) return;
-      if(this.get('player2s').findProperty('id', data.id)) return;
-
-      // Slot them in somewhere sensical
-      if(this.get('player1s.length') > this.get('player2s.length'))
-        this.get('player2s').pushObject(user);
-      else
-        this.get('player1s').pushObject(user);
+      this.refreshPlayers()
     },
 
     'pusher:memberRemoved': function(data) {
-      console.log("member removed: ", data);
+      this.refreshPlayers()
     }
 
   });

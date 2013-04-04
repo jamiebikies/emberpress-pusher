@@ -31,6 +31,15 @@ module Emberpress
       {}.to_json
     end
 
+    get '/games/:id/players' do
+      content_type :json
+      game = Emberpress::Game.find(params[:id])
+      {
+        player1s: game.player1s,
+        player2s: game.player2s
+      }.to_json
+    end
+
     get '/:id' do
       session[:user_id] ||= SecureRandom.hex(5)
       @game = Emberpress::Game.find(params[:id])
