@@ -8,6 +8,14 @@ module Emberpress
 
     def self.find(id)
       @games ||= {}
+      unless @games[id]
+        @games[id] = Game.new(id)
+        Pusher.trigger(
+          Emberpress[:pusher][:app_channel],
+          'game-created',
+          { game_id: id }
+        )
+      end
       @games[id] ||= Game.new(id)
     end
 

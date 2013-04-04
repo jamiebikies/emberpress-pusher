@@ -1,4 +1,4 @@
-// ## EmberPress
+// ## EmberPress - The pusherified version
 //
 // This is a clone of the popular [Letterpress](https://itunes.apple.com/ca/app/letterpress-word-game/id526619424?mt=8)
 // game. It is meant to show off the client side powers of the [EmberJS](http://emberjs.org)
@@ -415,19 +415,22 @@
 
   // **ApplicationController**: Handles controls at the application level.
   EmberPress.ApplicationController = Ember.Controller.extend(
-    EmberPress.PusherListener,
-    {
-      isLoading: true,
+    EmberPress.PusherListener, {
+    isLoading: true,
 
-      // Whether the instructions are being displayed.
-      instructionsVisible: false,
+    // Whether the instructions are being displayed.
+    instructionsVisible: false,
 
-      // Toggle displaying the instructions.
-      toggleInstructions: function() {
-        this.toggleProperty('instructionsVisible');
-      }
+    // Toggle displaying the instructions.
+    toggleInstructions: function() {
+      this.toggleProperty('instructionsVisible');
+    },
+
+    // Contrived
+    gameCreated: function(data) {
+      console.log("New game!: ", data);
     }
-  );
+  });
 
   EmberPress.WaitingController = Ember.Controller.extend({
     needs: 'board',
@@ -658,13 +661,19 @@
   });
 
   EmberPress.ApplicationRoute = Ember.Route.extend({
+
+    // Connect to pusher and subscribe to the channels we're interested in
     setupController: function(controller) {
       var pusher = this.controllerFor('pusher');
       pusher.connect(PRELOAD.pusher.key, {
         app: PRELOAD.pusher.app_channel,
         game: PRELOAD.pusher.game_channel
       });
+
+      // Contrived, but useful
+      controller.pusherListenTo('app', 'game-created');
     }
+
   });
 
   // Boilerplate below initializes the game. Routers make more sense
