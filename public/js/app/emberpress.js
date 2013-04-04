@@ -30,6 +30,8 @@
 
     LOG_ALL_EVENTS: false,
 
+    _channels: Em.Object.create(),
+
     // pusherKey
     //  your application's pusher key
     //
@@ -41,13 +43,17 @@
       this.set('pusher', new Pusher(pusherKey, options));
       for(var name in channels) {
         var channel = this.get('pusher').subscribe(channels[name]);
-        this.set(name, channel);
+        this.set('_channels.' + name, channel);
         if(this.LOG_ALL_EVENTS) {
           channel.bind_all(function(eventName, data) {
             console.log("Pusher event received", eventName, data);
           });
         }
       }
+    },
+
+    channelFor: function(name) {
+      return this.get('_channels.' + name)
     }
 
   });
@@ -58,22 +64,52 @@
 
     needs: 'pusher',
 
+    _pusherBindings: [],
+
     // Implement the handlers in the controller that has been bound
     // or somewhere up the chain in the router if required.
     //
     // The event name coming in from pusher is going to be camelized
     // ie: users_added pusher event will send usersAdded to the controller
     pusherListenTo: function(channelName, eventName) {
-      var channel = this.get("controllers.pusher." + channelName);
+      var channel = this.get('controllers.pusher').channelFor(channelName);
       if(channel) {
         var _this = this;
-        channel.bind(eventName, function(data) {
+        var handler = function(data) {
           _this.send(Em.String.camelize(eventName), data);
+        };
+        channel.bind(eventName, handler);
+        this.get('_pusherBindings').pushObject({
+          channelName: channelName,
+          eventName: eventName,
+          handler: handler
         });
       }
       else {
         console.log("The channel you specified doesn't exist");
       }
+    },
+
+    // Unbind a specific event from being propagated
+    pusherUnlistenTo: function(channelName, eventName) {
+      var binding = this.get('_pusherBindings').find(function(b) {
+        return b.channelName === channelName && b.eventName === eventName;
+      });
+      var channel = this.get('controllers.pusher').channelFor(channelName);
+      channel.unbind(binding.eventName, binding.handler);
+      this.get('_pusherBindings').removeObject(binding);
+    },
+
+    _sendEvent: function(data) {
+      this.send(Em.String.camelize(eventName), data);
+    },
+
+    destroy: function() {
+      var _this = this;
+      this.get('pusherBindings').forEach(function(binding) {
+        _this.pusherUnlistenTo(binding.channelName, binding.eventName);
+      });
+      this._super()
     }
 
   });
@@ -82,7 +118,9 @@
   EmberPress.PusherTrigger = Em.Mixin.create({
     needs: 'pusher',
     pusherTrigger: function(channelName, eventName, data) {
-      this.get('controllers.pusher.' + channelName).trigger(eventName, data);
+      this.get('controllers.pusher')
+        .channelFor(channelName)
+        .trigger(eventName, data);
     }
   });
 
