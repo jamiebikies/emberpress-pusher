@@ -2,7 +2,7 @@
   <head>
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
-    <title>EmberPress - A Letterpress clone in EmberJS</title>
+    <title>EmberPress Pusher - A Pusherified Letterpress clone in EmberJS</title>
     <meta name="description" content="EmberPress is a clone of Letterpress written in the EmberJS framework.">
     <meta name="viewport" content="width=device-width">
 
@@ -18,7 +18,8 @@
           game_channel: "<%= @game.pusher_channel_name %>"
         },
         game: <%= @game.to_json %>,
-        user_id: "<%= session[:user_id] %>"
+        user_id: "<%= session[:user_id] %>",
+        name: "<%= session[:name] %>"
       };
     </script>
   </head>
@@ -40,7 +41,27 @@
       </header>
 
       <div class="content">
+
+        <div class="team blue-team">
+          <h2>Blue Team</h2>
+          <ul>
+            {{#each controllers.users.player1s}}
+              <li>{{name}}</li>
+            {{/each}}
+          </ul>
+        </div>
+
+        <div class="team red-team">
+          <h2>Red Team</h2>
+          <ul>
+            {{#each controllers.users.player2s}}
+              <li>{{name}}</li>
+            {{/each}}
+          </ul>
+        </div>
+
         {{outlet}}
+
       </div>
 
       <div id="instructions" {{bindAttr class="controller.instructionsVisible:visible"}}>

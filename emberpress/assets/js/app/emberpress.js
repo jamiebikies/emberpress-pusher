@@ -28,7 +28,7 @@
   // ## Libraries
   EmberPress.PusherController = Em.Controller.extend({
 
-    LOG_ALL_EVENTS: false,
+    LOG_ALL_EVENTS: true,
     _channels: [],
     _pusher: null,
 
@@ -224,8 +224,13 @@
       // There are two players. We'll identify them as *p1* and *p2*
       this.set('player1', EmberPress.Player.create({
         id: 'p1',
-        board: this,
-        user_id: PRELOAD.game.players.player1.id
+        board: this
+      }));
+
+      // There are two players. We'll identify them as *p1* and *p2*
+      this.set('player2', EmberPress.Player.create({
+        id: 'p2',
+        board: this
       }));
 
       // The first turn always goes to *p1*
@@ -418,6 +423,8 @@
     EmberPress.PusherListener, {
     isLoading: true,
 
+    needs: 'users',
+
     // Whether the instructions are being displayed.
     instructionsVisible: false,
 
@@ -429,17 +436,72 @@
     // Contrived
     gameCreated: function(data) {
       console.log("New game!: ", data);
+    },
+
+    // Contrived
+    clientAddLetter: function(data) {
+      console.log("ApplicationController's clientAddLetter", data);
     }
   });
 
   EmberPress.WaitingController = Ember.Controller.extend({
-    needs: 'board',
 
-    player2Binding: 'controllers.board.content.player2',
+    needs: 'users',
 
     isWaiting: function() {
-      return !this.get('player2');
-    }.property('player2'),
+      console.log("isWaiting: ", this.get('controllers.users.player1s.length'));
+      console.log("isWaiting: ", this.get('controllers.users.player2s.length'));
+      if(!this.get('controllers.users.player1s.length')) return true;
+      if(!this.get('controllers.users.player2s.length')) return true;
+      return false;
+    }.property(
+      'controllers.users.player1s.length',
+      'controllers.users.player2s.length'
+    )
+
+  });
+
+
+  // Contains all of the player/users objects
+  EmberPress.UsersController = Ember.Controller.extend(
+    EmberPress.PusherListener, {
+
+    player1s: [],
+    player2s: [],
+
+    // Setup the player as either a player1 or player2
+    'pusher:subscriptionSucceeded': function(data) {
+      for(var user_id in data._members_map) {
+        var user = Em.Object.create({
+          id: user_id,
+          name: data._members_map[user_id].name
+        });
+        if(PRELOAD.game.players.player1s.indexOf(user_id) >= 0)
+          this.get('player1s').pushObject(user);
+        else if(PRELOAD.game.players.player2s.indexOf(user_id) >= 0)
+          this.get('player2s').pushObject(user);
+      }
+    },
+
+    'pusher:memberAdded': function(data) {
+      console.log("member added: ", data);
+      var user = Em.Object.create({ id: data.id, name: data.info.name });
+
+      // We don't want to do anything if this user is already a player
+      if(this.get('player1s').findProperty('id', data.id)) return;
+      if(this.get('player2s').findProperty('id', data.id)) return;
+
+      // Slot them in somewhere sensical
+      if(this.get('player1s.length') > this.get('player2s.length'))
+        this.get('player2s').pushObject(user);
+      else
+        this.get('player1s').pushObject(user);
+    },
+
+    'pusher:memberRemoved': function(data) {
+      console.log("member removed: ", data);
+    }
+
   });
 
   // **BoardController**: handles all interaction with the game board.
@@ -447,6 +509,8 @@
     EmberPress.PusherTrigger,
     EmberPress.PusherListener,
     {
+
+    needs: 'users',
 
     // By default, there is no game in progress.
     inProgress: true,
@@ -537,14 +601,6 @@
       window.location = '/'
     },
 
-    clientJoined: function(data) {
-      this.set('player2', EmberPress.Player.create({
-        id: 'p2',
-        board: this,
-        user_id: data.user_id
-      }));
-    },
-
     clientClearWord: function(data) {
       var data = data || {};
       if(!data.remote && this.notUsersTurn()) return;
@@ -575,14 +631,21 @@
       this.get('content').removeLetter(letter);
     },
 
-    'pusher:subscriptionSucceeded': function() {
-      this.pusherTrigger('game', 'client-joined', { remote: true });
-    },
-
     notUsersTurn: function() {
-      if(this.get('currentUserId') != this.get('content.currentPlayer.user_id')) {
-        alert("It's not your turn!");
-        return true;
+      console.log("nut: ", this.get('currentPlayer.id'));
+      console.log(this.get('controllers.users.player1s'));
+      console.log(this.get('currentUserId'));
+      if(this.get('currentPlayer.id') == 'p1') {
+        if(!this.get('controllers.users.player1s').findProperty('id', this.get('currentUserId'))) {
+          alert("It's not your turn!");
+          return true;
+        }
+      }
+      else {
+        if(!this.get('controllers.users.player2s').findProperty('id', this.get('currentUserId'))) {
+          alert("It's not your turn!");
+          return true;
+        }
       }
     },
 
@@ -672,6 +735,12 @@
 
       // Contrived, but useful
       controller.pusherListenTo('app', 'game-created');
+      controller.pusherListenTo('game', 'client-add-letter');
+
+      var usersController = this.controllerFor('users');
+      usersController.pusherListenTo('game', 'pusher:member_added');
+      usersController.pusherListenTo('game', 'pusher:member_removed');
+      usersController.pusherListenTo('game', 'pusher:subscription_succeeded');
     }
 
   });
@@ -689,22 +758,29 @@
       // Bind to the relevant pusher events that will arrive
       boardController.pusherListenTo('game', 'client-add-letter');
       boardController.pusherListenTo('game', 'client-remove-letter');
-      boardController.pusherListenTo('game', 'client-joined');
       boardController.pusherListenTo('game', 'client-clear-word');
       boardController.pusherListenTo('game', 'client-submit-word');
       boardController.pusherListenTo('game', 'client-skip-turn');
       boardController.pusherListenTo('game', 'client-resign');
-
-      // If the current user is player 2, set them up
-      if(PRELOAD.game.players.player2.id === PRELOAD.user_id) {
-        boardController.send('clientJoined', { user_id: PRELOAD.user_id });
-        boardController.pusherListenTo('game', 'pusher:subscription_succeeded');
-      }
     },
 
     renderTemplate: function() {
       this.render('board');
     }
   });
+
+  // If we don't yet have a name for the user, get it and set it on the
+  // server before we continue. This name is needed for the presence chanenl
+  // info. In a real system, this would be able to be loaded from the
+  // current_user object.
+  if(!PRELOAD.name) {
+    EmberPress.deferReadiness();
+    var name = prompt("What's your name?");
+    $.post("/current_user", { name: name }, function(data) {
+      PRELOAD.name = name;
+      EmberPress.advanceReadiness();
+    });
+  }
+
 
 }());

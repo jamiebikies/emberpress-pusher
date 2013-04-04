@@ -68,6 +68,7 @@ footer a[href]:hover {
   width: 350px;
   margin: 0 auto;
   padding: 20px;
+  position: relative;
 }
 
 /* Controls */
@@ -295,4 +296,31 @@ footer a[href]:hover {
 
 .is-waiting {
   display: block;
+  z-index: 100;
+}
+
+.team {
+  position: absolute;
+  top: 50px;
+  width: 200px;
+  overflow-x: hidden;
+  height: 703px;
+  overflow-y: auto;
+}
+
+.team li {
+  margin-top: 10px;
+}
+
+.team h2 {
+  font-weight: bold;
+}
+
+.blue-team {
+  left: -200px;
+  text-align: right;
+}
+
+.red-team {
+  right: -200px;
 }

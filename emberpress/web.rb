@@ -14,7 +14,21 @@ module Emberpress
 
     post '/pusher/auth' do
       content_type :json
-      Pusher[params[:channel_name]].authenticate(params[:socket_id]).to_json
+      Pusher[params[:channel_name]].authenticate(
+        params[:socket_id],
+        {
+          user_id: session[:user_id],
+          user_info: {
+            name: session[:name]
+          }
+        }
+      ).to_json
+    end
+
+    post '/current_user' do
+      content_type :json
+      session[:name] = params[:name]
+      {}.to_json
     end
 
     get '/:id' do

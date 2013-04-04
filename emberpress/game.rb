@@ -4,7 +4,7 @@ module Emberpress
 
     LETTERS = %w{ A B C D E F G H I J K L M N O P Q R S T U F W X Y Z }
 
-    attr_reader :id, :player1, :player2, :letters
+    attr_reader :id, :player1s, :player2s, :letters
 
     def self.find(id)
       @games ||= {}
@@ -22,28 +22,30 @@ module Emberpress
     def initialize(id)
       @id = id
       @letters = []
-      @player1 = {}
-      @player2 = {}
+      @player1s = []
+      @player2s = []
       25.times { |i| @letters[i] = LETTERS.sample }
     end
 
     def add_player(user_id)
-      @player1[:id] ||= user_id
-      if @player2[:id].nil? && @player1[:id] != user_id
-        @player2[:id] = user_id
+      return if @player1s.include?(user_id) || @player2s.include?(user_id)
+      if @player1s.length > @player2s.length
+        @player2s.push(user_id)
+      else
+        @player1s.push(user_id)
       end
     end
 
     def pusher_channel_name
-      "private-game.#{id}"
+      "presence-game.#{id}"
     end
 
     def to_json
       {
         id: id,
         players: {
-          player1: @player1,
-          player2: @player2
+          player1s: @player1s,
+          player2s: @player2s
         },
         letters: letters
       }.to_json
