@@ -59,12 +59,13 @@
       }
     },
 
+    // Accessor method to get a handle on a pusher channel given
+    // the channel's name
     channelFor: function(name) {
-      var channelObject = this.get('_channels').findProperty('name', name);
-      if(channelObject) {
-        return channelObject.channel;
+      try {
+        return this.get('_channels').findProperty('name', name)['channel'];
       }
-      else {
+      catch(error) {
         console.warn("Could not find a channel by the name of '" + name + "'");
       }
     }
@@ -86,17 +87,21 @@
     // ie: users_added pusher event will bubble the usersAdded event
     pusherListenTo: function(channelName, eventName) {
       var channel = this.get('controllers.pusher').channelFor(channelName);
+
+      // Create the handler and in the darkness, bind it
       if(channel) {
         var _this = this;
         var handler = function(data) {
           _this.send(Em.String.camelize(eventName), data);
         };
+        channel.bind(eventName, handler);
+
+        // Track this channel/event/handler
         this.get('_pusherBindings').pushObject({
           channelName: channelName,
           eventName: eventName,
           handler: handler
         });
-        channel.bind(eventName, handler);
       }
       else {
         console.warn("The channel '" + channelName + "' does not exist");
@@ -105,10 +110,14 @@
 
     // Unbind a specific event from being propagated
     pusherUnlistenTo: function(channelName, eventName) {
+
+      // Locate the tracked binding and get a handle on the channel
       var binding = this.get('_pusherBindings').find(function(b) {
         return b.channelName === channelName && b.eventName === eventName;
       });
       var channel = this.get('controllers.pusher').channelFor(channelName);
+
+      // Remove the binding and tracking objects
       if(binding && channel) {
         channel.unbind(binding.eventName, binding.handler);
         this.get('_pusherBindings').removeObject(binding);
@@ -130,12 +139,15 @@
 
   });
 
-  // Allows you to trigger events on your controllers
+  // Mixin providing a trigger method to fire pusher client events.
+  //
+  // Note: client events need to be enabled in your pusher app settings.
   EmberPress.PusherTrigger = Em.Mixin.create({
 
     needs: 'pusher',
 
-    // Fire an event programmatically
+    // Fire an event programmatically. All Events must unfortunately use
+    // the client-<eventname> format for client events (a pusher restriction).
     pusherTrigger: function(channelName, eventName, data) {
       var channel = this.get('controllers.pusher').channelFor(channelName)
       channel.trigger(eventName, data);
