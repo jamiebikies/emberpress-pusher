@@ -15,7 +15,7 @@
         pusher: {
           key: "<%= Emberpress[:pusher][:key] %>",
           app_channel: "<%= Emberpress[:pusher][:app_channel] %>",
-          game_channel: "<%= 'private-game.' + params[:id] %>"
+          game_channel: "<%= @game.pusher_channel_name %>"
         },
         game: <%= @game.to_json %>,
         user_id: "<%= session[:user_id] %>"

@@ -293,10 +293,6 @@ footer a[href]:hover {
   display: none;
 }
 
-.waiting {
-  display: block;
-}
-
-.is-loading {
+.is-waiting {
   display: block;
 }

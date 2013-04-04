@@ -79,11 +79,11 @@
 
     _pusherBindings: [],
 
-    // Implement the handlers in the controller that has been bound
-    // or somewhere up the chain in the router if required.
+    // Implement the handlers in the controller or somewhere
+    // up the chain (ie. in the router)
     //
     // The event name coming in from pusher is going to be camelized
-    // ie: users_added pusher event will send usersAdded to the controller
+    // ie: users_added pusher event will bubble the usersAdded event
     pusherListenTo: function(channelName, eventName) {
       var channel = this.get('controllers.pusher').channelFor(channelName);
       if(channel) {
@@ -99,7 +99,7 @@
         channel.bind(eventName, handler);
       }
       else {
-        console.log("The channel you specified doesn't exist");
+        console.warn("The channel '" + channelName + "' does not exist");
       }
     },
 
@@ -132,11 +132,15 @@
 
   // Allows you to trigger events on your controllers
   EmberPress.PusherTrigger = Em.Mixin.create({
+
     needs: 'pusher',
+
+    // Fire an event programmatically
     pusherTrigger: function(channelName, eventName, data) {
       var channel = this.get('controllers.pusher').channelFor(channelName)
       channel.trigger(eventName, data);
     }
+
   });
 
   // ## Models
@@ -409,10 +413,6 @@
       // Toggle displaying the instructions.
       toggleInstructions: function() {
         this.toggleProperty('instructionsVisible');
-      },
-
-      'pusher:subscriptionSucceeded': function(data) {
-        this.set('isLoading', false);
       }
     }
   );
@@ -586,7 +586,7 @@
 
   EmberPress.WaitingView = Ember.View.extend({
     templateName: 'waiting',
-    classNameBindings: ['controller.isWaiting:waiting', ':waiting-for-opponent'],
+    classNameBindings: ['controller.isWaiting', ':waiting-for-opponent']
   });
 
   // **BoardView**: Used to render the board from a template.
@@ -631,8 +631,7 @@
 
     // The player clicked on a letter, so we want to add it to our word.
     click: function() {
-      if(this.get('controller').notUsersTurn()) return;
-      if (this.get('chosen')) return;
+      if(this.get('controller').notUsersTurn() || this.get('chosen')) return;
       this.get('controller').send(
         'clientAddLetter',
         { id: this.get('content.id') }
@@ -677,10 +676,7 @@
 
       // If the current user is player 2, set them up
       if(PRELOAD.game.players.player2.id === PRELOAD.user_id) {
-        boardController.send(
-          'clientJoined',
-          { user_id: PRELOAD.user_id }
-        );
+        boardController.send('clientJoined', { user_id: PRELOAD.user_id });
         boardController.pusherListenTo('game', 'pusher:subscription_succeeded');
       }
     },
