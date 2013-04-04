@@ -1,32 +1,15 @@
-require 'securerandom'
-require_relative './game'
+require './app/web'
+require './app/game'
 
 module Emberpress
 
-  class Web < Sinatra::Base
-
-    enable :sessions
-
-    register Sinatra::Reloader
-
-    set :views, File.expand_path(File.dirname(__FILE__))
-
-    get '/' do
-      redirect "/#{SecureRandom.hex(2)}"
+  def self.[](value)
+    begin
+      @config ||= YAML.load_file('./config.yml')
+    rescue
+      raise "You probably want to create a config.yml based on config.yml.tmpl"
     end
-
-    post '/pusher/auth' do
-      content_type :json
-      Pusher[params[:channel_name]].authenticate(params[:socket_id]).to_json
-    end
-
-    get '/:id' do
-      session[:user_id] ||= SecureRandom.hex(5)
-      @game = Emberpress::Game.find(params[:id])
-      @game.add_player(session[:user_id])
-      erb :index
-    end
-
+    @config[value]
   end
 
 end

@@ -1,7 +1,6 @@
 GEM
   remote: https://rubygems.org/
   specs:
-    awesome_print (1.1.0)
     backports (3.3.0)
     daemons (1.1.9)
     eventmachine (1.0.3)
@@ -37,7 +36,6 @@ PLATFORMS
   ruby
 
 DEPENDENCIES
-  awesome_print
   json
   pusher
   sinatra

@@ -1,14 +1,5 @@
 module Emberpress
 
-  def self.[](value)
-    begin
-      @config ||= YAML.load_file('./config.yml')
-    rescue
-      raise "You probably want to create a config.yml based on config.yml.tmpl"
-    end
-    @config[value]
-  end
-
   class Game
 
     LETTERS = %w{ A B C D E F G H I J K L M N O P Q R S T U F W X Y Z }
