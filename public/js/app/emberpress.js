@@ -415,10 +415,7 @@
     // `submitWord` is called when the player clicks submit.
     clientSubmitWord: function(data) {
       var data = data || {};
-      if(this.get('notUsersTurn') && !data.remote) {
-        alert("It's not your turn!");
-        return;
-      }
+      if(!data.remote && this.notUsersTurn()) return;
       var w = this.get('content.wordAsString').toLowerCase();
 
       // First, we need to see if the word is in our game's dictionary.
@@ -454,10 +451,7 @@
     // When a user chooses to skip their turn.
     clientSkipTurn: function(data) {
       var data = data || {};
-      if(this.get('notUsersTurn') && !data.remote) {
-        alert("It's not your turn!");
-        return;
-      }
+      if(!data.remote && this.notUsersTurn()) return;
       if (this.get('skipped')) {
         // If the previous player also skipped their turn, the game is now over.
         this.get('content').finishGame();
@@ -485,10 +479,7 @@
 
     clientClearWord: function(data) {
       var data = data || {};
-      if(this.get('notUsersTurn') && !data.remote) {
-        alert("It's not your turn!");
-        return;
-      }
+      if(!data.remote && this.notUsersTurn()) return;
       this.get('content').clearWord();
       if(!data || !data.remote)
         this.pusherTrigger('game', 'client-clear-word', { remote: true });
@@ -506,10 +497,7 @@
 
     clientRemoveLetter: function(data) {
       var data = data || {};
-      if(this.get('notUsersTurn') && !data.remote) {
-        alert("It's not your turn!");
-        return;
-      }
+      if(!data.remote && this.notUsersTurn()) return;
       var letter = this.findLetter(data.id);
       if(!data.remote) {
         this.pusherTrigger('game', 'client-remove-letter',
@@ -524,8 +512,11 @@
     },
 
     notUsersTurn: function() {
-      return this.get('currentUserId') != this.get('content.currentPlayer.user_id');
-    }.property('content.currentPlayer'),
+      if(this.get('currentUserId') != this.get('content.currentPlayer.user_id')) {
+        alert("It's not your turn!");
+        return true;
+      }
+    },
 
     findLetter: function(id) {
       var letter = null;
@@ -587,10 +578,7 @@
 
     // The player clicked on a letter, so we want to add it to our word.
     click: function() {
-      if(this.get('controller.notUsersTurn')) {
-        alert("It's not your turn!");
-        return;
-      }
+      if(this.get('controller').notUsersTurn()) return;
       if (this.get('chosen')) return;
       this.get('controller').send(
         'clientAddLetter',
