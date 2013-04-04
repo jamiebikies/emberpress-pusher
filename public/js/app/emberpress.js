@@ -29,8 +29,8 @@
   EmberPress.PusherController = Em.Controller.extend({
 
     LOG_ALL_EVENTS: false,
-
-    _channels: Em.Object.create(),
+    _channels: [],
+    _pusher: null,
 
     // pusherKey
     //  your application's pusher key
@@ -40,10 +40,17 @@
     //   key is the name by which you will refer to this channel
     //   value is the name of the pusher channel to subscribe to
     connect: function(pusherKey, channels, options) {
-      this.set('pusher', new Pusher(pusherKey, options));
+      this.set('_pusher', new Pusher(pusherKey, options));
       for(var name in channels) {
-        var channel = this.get('pusher').subscribe(channels[name]);
-        this.set('_channels.' + name, channel);
+        var channel = this.get('_pusher').subscribe(channels[name]);
+
+        // Keep track of all of our channels
+        this.get('_channels').pushObject({
+          name: name,
+          channel: channel
+        });
+
+        // Spit out a bunch of logging if asked
         if(this.LOG_ALL_EVENTS) {
           channel.bind_all(function(eventName, data) {
             console.log("Pusher event received", eventName, data);
@@ -53,7 +60,13 @@
     },
 
     channelFor: function(name) {
-      return this.get('_channels.' + name)
+      var channelObject = this.get('_channels').findProperty('name', name);
+      if(channelObject) {
+        return channelObject.channel;
+      }
+      else {
+        console.warn("Could not find a channel by the name of '" + name + "'");
+      }
     }
 
   });
@@ -78,12 +91,12 @@
         var handler = function(data) {
           _this.send(Em.String.camelize(eventName), data);
         };
-        channel.bind(eventName, handler);
         this.get('_pusherBindings').pushObject({
           channelName: channelName,
           eventName: eventName,
           handler: handler
         });
+        channel.bind(eventName, handler);
       }
       else {
         console.log("The channel you specified doesn't exist");
@@ -96,17 +109,20 @@
         return b.channelName === channelName && b.eventName === eventName;
       });
       var channel = this.get('controllers.pusher').channelFor(channelName);
-      channel.unbind(binding.eventName, binding.handler);
-      this.get('_pusherBindings').removeObject(binding);
+      if(binding && channel) {
+        channel.unbind(binding.eventName, binding.handler);
+        this.get('_pusherBindings').removeObject(binding);
+      }
+      else {
+        console.warn("It doesn't look like have '" + eventName +
+          "' bound to the '" + channelName + "' channel");
+      }
     },
 
-    _sendEvent: function(data) {
-      this.send(Em.String.camelize(eventName), data);
-    },
-
+    // Hook into the object lifecycle to tear down any bindings
     destroy: function() {
       var _this = this;
-      this.get('pusherBindings').forEach(function(binding) {
+      this.get('_pusherBindings').forEach(function(binding) {
         _this.pusherUnlistenTo(binding.channelName, binding.eventName);
       });
       this._super()
@@ -118,9 +134,8 @@
   EmberPress.PusherTrigger = Em.Mixin.create({
     needs: 'pusher',
     pusherTrigger: function(channelName, eventName, data) {
-      this.get('controllers.pusher')
-        .channelFor(channelName)
-        .trigger(eventName, data);
+      var channel = this.get('controllers.pusher').channelFor(channelName)
+      channel.trigger(eventName, data);
     }
   });
 
