@@ -5,8 +5,8 @@ module Emberpress
   class Web < Sinatra::Base
 
     enable :sessions
-    set :public_folder, 'app/assets'
-    set :views, 'app'
+    set :public_folder, 'emberpress/assets'
+    set :views, 'emberpress'
 
     get '/' do
       redirect "/#{SecureRandom.hex(2)}"

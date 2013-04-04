@@ -1,5 +1,5 @@
-require './app/web'
-require './app/game'
+require './emberpress/web'
+require './emberpress/game'
 
 module Emberpress
 
