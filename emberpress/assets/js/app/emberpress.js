@@ -638,9 +638,6 @@
     },
 
     notUsersTurn: function() {
-      console.log("nut: ", this.get('currentPlayer.id'));
-      console.log(this.get('controllers.users.player1s'));
-      console.log(this.get('currentUserId'));
       if(this.get('currentPlayer.id') == 'p1') {
         if(!this.get('controllers.users.player1s').findProperty('id', this.get('currentUserId'))) {
           alert("It's not your turn!");
