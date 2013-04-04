@@ -25,6 +25,67 @@
     rootElement: $('body')
   });
 
+  // ## Libraries
+  EmberPress.PusherController = Em.Controller.extend({
+
+    LOG_ALL_EVENTS: false,
+
+    // pusherKey
+    //  your application's pusher key
+    //
+    // channels
+    //   is a hash containing key value pairs where the:
+    //   key is the name by which you will refer to this channel
+    //   value is the name of the pusher channel to subscribe to
+    connect: function(pusherKey, channels, options) {
+      this.set('pusher', new Pusher(pusherKey, options));
+      for(var name in channels) {
+        var channel = this.get('pusher').subscribe(channels[name]);
+        this.set(name, channel);
+        if(this.LOG_ALL_EVENTS) {
+          channel.bind_all(function(eventName, data) {
+            console.log("Pusher event received", eventName, data);
+          });
+        }
+      }
+    }
+
+  });
+
+  // This mixin is intended to be mixed into a controller in order
+  // to allow that controller to hook into pusher events.
+  EmberPress.PusherListener = Em.Mixin.create({
+
+    needs: 'pusher',
+
+    // Implement the handlers in the controller that has been bound
+    // or somewhere up the chain in the router if required.
+    //
+    // The event name coming in from pusher is going to be camelized
+    // ie: users_added pusher event will send usersAdded to the controller
+    pusherListenTo: function(channelName, eventName) {
+      var channel = this.get("controllers.pusher." + channelName);
+      if(channel) {
+        var _this = this;
+        channel.bind(eventName, function(data) {
+          _this.send(Em.String.camelize(eventName), data);
+        });
+      }
+      else {
+        console.log("The channel you specified doesn't exist");
+      }
+    }
+
+  });
+
+  // Allows you to trigger events on your controllers
+  EmberPress.PusherTrigger = Em.Mixin.create({
+    needs: 'pusher',
+    pusherTrigger: function(channelName, eventName, data) {
+      this.get('controllers.pusher.' + channelName).trigger(eventName, data);
+    }
+  });
+
   // ## Models
   //
   // Our models are delcared as extensions of `Ember.Object`. We use models
@@ -92,8 +153,11 @@
       this.set('winner', null);
 
       // There are two players. We'll identify them as *p1* and *p2*
-      this.set('player1', EmberPress.Player.create({id: 'p1', board: this}));
-      this.set('player2', EmberPress.Player.create({id: 'p2', board: this}));
+      this.set('player1', EmberPress.Player.create({
+        id: 'p1',
+        board: this,
+        user_id: PRELOAD.game.players.player1.id
+      }));
 
       // The first turn always goes to *p1*
       this.set('currentPlayer', this.get('player1'));
@@ -115,7 +179,7 @@
         for(var i=0; i<this.SIZE; i += 1) {
           var letter = EmberPress.Letter.create({
             id: letterId,
-            letter: String.fromCharCode(65 + Math.round(Math.random() * 25))
+            letter: PRELOAD.game.letters[letterId]
           });
           row.pushObject(letter);
           letterId += 1;
@@ -281,19 +345,40 @@
   // ## Controllers
 
   // **ApplicationController**: Handles controls at the application level.
-  EmberPress.ApplicationController = Ember.Controller.extend({
+  EmberPress.ApplicationController = Ember.Controller.extend(
+    EmberPress.PusherListener,
+    {
+      isLoading: true,
 
-    // Whether the instructions are being displayed.
-    instructionsVisible: false,
+      // Whether the instructions are being displayed.
+      instructionsVisible: false,
 
-    // Toggle displaying the instructions.
-    toggleInstructions: function() {
-      this.toggleProperty('instructionsVisible');
+      // Toggle displaying the instructions.
+      toggleInstructions: function() {
+        this.toggleProperty('instructionsVisible');
+      },
+
+      'pusher:subscriptionSucceeded': function(data) {
+        this.set('isLoading', false);
+      }
     }
+  );
+
+  EmberPress.WaitingController = Ember.Controller.extend({
+    needs: 'board',
+
+    player2Binding: 'controllers.board.content.player2',
+
+    isWaiting: function() {
+      return !this.get('player2');
+    }.property('player2'),
   });
 
   // **BoardController**: handles all interaction with the game board.
-  EmberPress.BoardController = Ember.ObjectController.extend({
+  EmberPress.BoardController = Ember.ObjectController.extend(
+    EmberPress.PusherTrigger,
+    EmberPress.PusherListener,
+    {
 
     // By default, there is no game in progress.
     inProgress: true,
@@ -311,8 +396,10 @@
     }.property('content.word.@each'),
 
     // `resign` is called when a player clicks the resign button.
-    resign: function() {
+    clientResign: function(data) {
       this.get('content').finishGame(true);
+      if(!data || !data.remote)
+        this.pusherTrigger('game', 'client-resign', { remote: true });
     },
 
     // If we have a winner, the game is over
@@ -323,7 +410,7 @@
     }.observes('content.winner'),
 
     // `submitWord` is called when the player clicks submit.
-    submitWord: function() {
+    clientSubmitWord: function(data) {
 
       var w = this.get('content.wordAsString').toLowerCase();
 
@@ -352,10 +439,13 @@
 
       // Finally, submit the word to the `Board` model.
       this.get('content').submitWord();
+
+      if(!data || !data.remote)
+        this.pusherTrigger('game', 'client-submit-word', { remote: true });
     },
 
     // When a user chooses to skip their turn.
-    skipTurn: function() {
+    clientSkipTurn: function(data) {
       if (this.get('skipped')) {
         // If the previous player also skipped their turn, the game
         // is now over.
@@ -365,18 +455,70 @@
         this.set('skipped', true);
         this.get('content').nextTurn();
       }
+      if(!data || !data.remote)
+        this.pusherTrigger('game', 'client-skip-turn', { remote: true });
     },
 
     // When we want to start a new game on this board.
     reset: function() {
-      this.set('skipped', false);
-      this.get('content').restart();
-      this.set('inProgress', true);
+      window.location = '/'
+    },
+
+    clientJoined: function(data) {
+      this.set('player2', EmberPress.Player.create({
+        id: 'p2',
+        board: this,
+        user_id: data.user_id
+      }));
+    },
+
+    clientClearWord: function(data) {
+      this.get('content').clearWord();
+      if(!data || !data.remote)
+        this.pusherTrigger('game', 'client-clear-word', { remote: true });
+    },
+
+    clientAddLetter: function(data) {
+      var letter = this.findLetter(data.id);
+      if(!data.remote) {
+        this.pusherTrigger('game', 'client-add-letter',
+          { id: data.id, remote: true }
+        );
+      }
+      this.get('content').addLetter(letter);
+    },
+
+    clientRemoveLetter: function(data) {
+      var letter = this.findLetter(data.id);
+      if(!data.remote) {
+        this.pusherTrigger('game', 'client-remove-letter',
+          { id: data.id, remote: true }
+        );
+      }
+      this.get('content').removeLetter(letter);
+    },
+
+    'pusher:subscriptionSucceeded': function() {
+      this.pusherTrigger('game', 'client-joined', { remote: true });
+    },
+
+    findLetter: function(id) {
+      var letter = null;
+      this.get('content.rows').find(function(row) {
+        letter = row.findProperty('id', id);
+        return letter;
+      });
+      return letter
     }
 
   });
 
   // ## Views
+
+  EmberPress.WaitingView = Ember.View.extend({
+    templateName: 'waiting',
+    classNameBindings: ['controller.isWaiting:waiting', ':waiting-for-opponent'],
+  });
 
   // **BoardView**: Used to render the board from a template.
   EmberPress.BoardView = Ember.View.extend({templateName: 'board'});
@@ -405,7 +547,7 @@
 
     // If the player clicks a letter in the word, we remove it.
     click: function() {
-      this.get('board').removeLetter(this.get('content'));
+      this.get('controller').send('clientRemoveLetter', { id: this.get('content.id') });
     }
 
   });
@@ -420,8 +562,12 @@
 
     // The player clicked on a letter, so we want to add it to our word.
     click: function() {
+      if(PRELOAD.user_id != this.get('controller.content.currentPlayer.user_id')) {
+        alert("It's not your turn!!");
+        return
+      }
       if (this.get('chosen')) return;
-      this.get('board').addLetter(this.get('content'));
+      this.get('controller').send('clientAddLetter', { id: this.get('content.id') });
     }
   });
 
@@ -431,17 +577,48 @@
     templateName: 'player'
   });
 
+  EmberPress.ApplicationRoute = Ember.Route.extend({
+    setupController: function(controller) {
+      var pusher = this.controllerFor('pusher');
+      pusher.connect(PRELOAD.pusher.key, {
+        app: PRELOAD.pusher.app_channel,
+        game: PRELOAD.pusher.game_channel
+      });
+    }
+  });
+
   // Boilerplate below initializes the game. Routers make more sense
   // when there is more than one URL :)
   EmberPress.IndexRoute = Ember.Route.extend({
-    setupController: function() {
+    setupController: function(controller) {
       var board = EmberPress.Board.create();
+      var boardController = this.controllerFor('board');
+      var waitingController = this.controllerFor('waiting');
       board.restart();
-      this.controllerFor('board').set('content', board);
+      boardController.set('content', board);
+
+      // Bind to the relevant pusher events that will arrive
+      boardController.pusherListenTo('game', 'client-add-letter');
+      boardController.pusherListenTo('game', 'client-remove-letter');
+      boardController.pusherListenTo('game', 'client-joined');
+      boardController.pusherListenTo('game', 'client-clear-word');
+      boardController.pusherListenTo('game', 'client-submit-word');
+      boardController.pusherListenTo('game', 'client-skip-turn');
+      boardController.pusherListenTo('game', 'client-resign');
+
+      // If the current user is player 2, set them up
+      if(PRELOAD.game.players.player2.id === PRELOAD.user_id) {
+        boardController.send(
+          'clientJoined',
+          { user_id: PRELOAD.user_id }
+        );
+        boardController.pusherListenTo('game', 'pusher:subscription_succeeded');
+      }
     },
 
     renderTemplate: function() {
       this.render('board');
     }
   });
+
 }());

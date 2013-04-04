@@ -10,6 +10,17 @@
     <link rel="stylesheet" href="css/reset.css">
     <link rel="stylesheet" href="css/font-awesome.css">
     <link rel="stylesheet" href="css/main.css">
+    <script>
+      window.PRELOAD = {
+        pusher: {
+          key: "<%= Emberpress[:pusher][:key] %>",
+          app_channel: "<%= Emberpress[:pusher][:app_channel] %>",
+          game_channel: "<%= 'private-game.' + params[:id] %>"
+        },
+        game: <%= @game.to_json %>,
+        user_id: "<%= session[:user_id] %>"
+      };
+    </script>
   </head>
   <body>
     <script src="js/vendor/jquery-1.9.1.min.js"></script>
@@ -19,6 +30,9 @@
     <script src="js/vendor/pusher.min.js"></script>
 
     <script type="text/x-handlebars" data-template-name="application">
+
+      {{render "waiting"}}
+
       <header>
         <h1>EmberPress</h1>
 
@@ -29,7 +43,7 @@
         {{outlet}}
       </div>
 
-      <div id='instructions' {{bindAttr class="controller.instructionsVisible:visible"}}>
+      <div id="instructions" {{bindAttr class="controller.instructionsVisible:visible"}}>
 
         <button {{action toggleInstructions target="controller"}}>Close</button>
 
@@ -99,10 +113,10 @@
       {{#if inProgress}}
         <nav id='controls'>
           {{#if showClearWord}}
-            <button {{action clearWord target="content"}} class='clear'>Clear</button>
+            <button {{action clientClearWord}} class='clear'>Clear</button>
           {{/if}}
           {{#if showSubmitWord}}
-            <button {{action submitWord target="controller"}} class='submit'>Submit</button>
+            <button {{action clientSubmitWord target="controller"}} class='submit'>Submit</button>
           {{/if}}
         </nav>
 
@@ -124,8 +138,8 @@
         </section>
 
         <section id='turn-controls'>
-          <button {{action skipTurn target="controller"}}>Skip Turn</button>
-          <button {{action resign target="controller"}}>Resign</button>
+          <button {{action clientSkipTurn target="controller"}}>Skip Turn</button>
+          <button {{action clientResign target="controller"}}>Resign</button>
         </section>
       {{else}}
         <h1>Game Over!</h1>
@@ -158,6 +172,11 @@
     </script>
 
 
+    <script type="text/x-handlebars" data-template-name="waiting">
+      waiting for opponent
+    </script>
+
     <script src="js/app/emberpress.js"></script>
+
   </body>
 </html>
