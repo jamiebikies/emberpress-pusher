@@ -41,10 +41,6 @@ class Emberpress < Sinatra::Base
   set :views, File.expand_path(File.dirname(__FILE__))
 
   get '/' do
-    redirect "/new"
-  end
-
-  get '/new' do
     redirect "/#{SecureRandom.hex(2)}"
   end
 

@@ -383,6 +383,9 @@
     // By default, there is no game in progress.
     inProgress: true,
 
+    // Set the curren't users id as provided by the server
+    currentUserId: PRELOAD.user_id,
+
     // Do we want to show 'CLEAR' button?
     showClearWord: function() {
       // The word needs to have at least one letter to be cleared.
@@ -411,7 +414,11 @@
 
     // `submitWord` is called when the player clicks submit.
     clientSubmitWord: function(data) {
-
+      var data = data || {};
+      if(this.get('notUsersTurn') && !data.remote) {
+        alert("It's not your turn!");
+        return;
+      }
       var w = this.get('content.wordAsString').toLowerCase();
 
       // First, we need to see if the word is in our game's dictionary.
@@ -440,22 +447,26 @@
       // Finally, submit the word to the `Board` model.
       this.get('content').submitWord();
 
-      if(!data || !data.remote)
+      if(!data.remote)
         this.pusherTrigger('game', 'client-submit-word', { remote: true });
     },
 
     // When a user chooses to skip their turn.
     clientSkipTurn: function(data) {
+      var data = data || {};
+      if(this.get('notUsersTurn') && !data.remote) {
+        alert("It's not your turn!");
+        return;
+      }
       if (this.get('skipped')) {
-        // If the previous player also skipped their turn, the game
-        // is now over.
+        // If the previous player also skipped their turn, the game is now over.
         this.get('content').finishGame();
       } else {
         // Otherwise, skip to the next turn.
         this.set('skipped', true);
         this.get('content').nextTurn();
       }
-      if(!data || !data.remote)
+      if(!data.remote)
         this.pusherTrigger('game', 'client-skip-turn', { remote: true });
     },
 
@@ -473,6 +484,11 @@
     },
 
     clientClearWord: function(data) {
+      var data = data || {};
+      if(this.get('notUsersTurn') && !data.remote) {
+        alert("It's not your turn!");
+        return;
+      }
       this.get('content').clearWord();
       if(!data || !data.remote)
         this.pusherTrigger('game', 'client-clear-word', { remote: true });
@@ -489,6 +505,11 @@
     },
 
     clientRemoveLetter: function(data) {
+      var data = data || {};
+      if(this.get('notUsersTurn') && !data.remote) {
+        alert("It's not your turn!");
+        return;
+      }
       var letter = this.findLetter(data.id);
       if(!data.remote) {
         this.pusherTrigger('game', 'client-remove-letter',
@@ -501,6 +522,10 @@
     'pusher:subscriptionSucceeded': function() {
       this.pusherTrigger('game', 'client-joined', { remote: true });
     },
+
+    notUsersTurn: function() {
+      return this.get('currentUserId') != this.get('content.currentPlayer.user_id');
+    }.property('content.currentPlayer'),
 
     findLetter: function(id) {
       var letter = null;
@@ -562,12 +587,15 @@
 
     // The player clicked on a letter, so we want to add it to our word.
     click: function() {
-      if(PRELOAD.user_id != this.get('controller.content.currentPlayer.user_id')) {
-        alert("It's not your turn!!");
-        return
+      if(this.get('controller.notUsersTurn')) {
+        alert("It's not your turn!");
+        return;
       }
       if (this.get('chosen')) return;
-      this.get('controller').send('clientAddLetter', { id: this.get('content.id') });
+      this.get('controller').send(
+        'clientAddLetter',
+        { id: this.get('content.id') }
+      );
     }
   });
 
