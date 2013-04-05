@@ -2,7 +2,7 @@ module Emberpress
 
   class Game
 
-    LETTERS = %w{ A B C D E F G H I J K L M N O P Q R S T U F W X Y Z }
+    LETTERS = %w{ A B C D E F G H I J K L M N O P Q R S T U V W X Y Z }
 
     attr_reader :id, :player1s, :player2s, :letters
 
