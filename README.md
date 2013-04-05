@@ -14,7 +14,7 @@ they *will* get out of sync. I didn't feel like spending much time on that part 
 the application because this was more meant as a pusher ember demo.  
   
 The application uses a pusher [presence channel](http://pusher.com/docs/client_api_guide/client_presence_channels)
-for the game and [client events](http://pusher.com/docs/client_api_guide/client_events#trigger-events). Most
+and [client events](http://pusher.com/docs/client_api_guide/client_events#trigger-events). Most
 importantly, it uses my ember-pusher libraries for the integration.
 
 ## Running it
