@@ -1,6 +1,6 @@
 # Emberpress pusher
 
-**NOTE: This example's code is out of date as it doesn't take advantage of https://github.com/jamiebikies/ember-pusher. Take a look at that library first.**
+**NOTE: The code in this example is out of date as it doesn't take advantage of https://github.com/jamiebikies/ember-pusher. Take a look at that library first.**
 
 
 Here in lies a fork of eviltrout's emberpress, whose original manuscripts
