@@ -1,4 +1,8 @@
-## Emberpress pusher
+# Emberpress pusher
+
+**NOTE: This example's code is out of date as it doesn't take advantage of https://github.com/jamiebikies/ember-pusher. Take a look at that library first.**
+
+
 Here in lies a fork of eviltrout's emberpress, whose original manuscripts
 have been archived [here](https://github.com/eviltrout/emberpress). The main goal
 of this fork is to provide a non-trivial pusher integration. This integration
